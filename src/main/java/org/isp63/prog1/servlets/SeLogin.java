@@ -32,8 +32,8 @@ public class SeLogin extends HttpServlet implements AdmConnexion {
       HttpSession session = request.getSession();
       session.setAttribute("usuario", u);
 
-      // 🔹 Si es ADMIN → redirige a /admin/productosAdmin.jsp
-      // 🔹 Si es USER → redirige a /productosAdmin.jsp
+      // 🔹 Si es ADMIN → redirige a index
+      // 🔹 Si es USER → redirige a index
       if ("ADMIN".equals(u.getRol())) {
         response.sendRedirect("index.jsp");
       } else {

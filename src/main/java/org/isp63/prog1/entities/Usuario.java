@@ -8,6 +8,8 @@ public class Usuario {
   private String password;
   private String rol;
 
+  public Usuario() {}
+
   public Usuario(int id, String nombre, String password, String rol) {
     this.id = id;
   }

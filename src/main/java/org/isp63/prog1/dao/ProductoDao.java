@@ -14,7 +14,6 @@ import java.util.List;
 
 public class ProductoDao implements AdmConnexion, DAO<Producto, Integer> {
 
-  // NOTA 1: Se recomienda eliminar 'private Connection conn = null;'
   // cuando se usa try-with-resources, ya que la conexión se gestiona localmente.
   // private Connection conn = null;
 

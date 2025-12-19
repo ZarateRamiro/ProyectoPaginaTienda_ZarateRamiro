@@ -19,15 +19,6 @@
         <url-pattern>/SeProducto</url-pattern>
     </servlet-mapping>
 
-    <servlet>
-        <servlet-name>SeUsuario</servlet-name>
-        <servlet-class>org.isp63.prog1.servlets.SeUsuario</servlet-class>
-    </servlet>
-    <!-- nombre del server y ruta url-->
-    <servlet-mapping>
-        <servlet-name>SeUsuario</servlet-name>
-        <url-pattern>/SeUsuario</url-pattern>
-    </servlet-mapping>
 
     <servlet>
         <servlet-name>SeLogin</servlet-name>
