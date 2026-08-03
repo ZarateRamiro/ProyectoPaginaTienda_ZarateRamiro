@@ -1,0 +1,88 @@
+USE tienda;
+
+-- ==========================
+-- USUARIOS
+-- ==========================
+
+INSERT INTO usuario(nombre,email,password,rol)
+VALUES
+('Administrador','admin@tienda.com','admin','ADMINISTRADOR'),
+
+('Juan Perez','juan@gmail.com','1234','USUARIO'),
+
+('Maria Gomez','maria@gmail.com','1234','USUARIO');
+
+-- ==========================
+-- PRODUCTOS
+-- ==========================
+
+INSERT INTO producto
+(nombre,descripcion,precio,imagen,stock,tipo)
+VALUES
+
+('Campera Adidas',
+'Campera rompeviento deportiva',
+45000,
+'https://www.dexter.com.ar/on/demandware.static/-/Sites-365-dabra-catalog/default/dwf7d44c39/products/ADIB8951/ADIB8951-1.JPG',
+12,
+'CAMPERA'),
+
+('Remera Nike',
+'Remera deportiva Dry Fit',
+18000,
+'https://nikearprod.vtexassets.com/arquivos/ids/1001200/remera-nike.jpg',
+30,
+'REMERA'),
+
+('Zapatillas New Balance',
+'Running gris',
+98000,
+'https://www.newbalance.com.ar/on/demandware.static/-/Sites-siteCatalog_NBEU/default/dw34fc5836/new_images/N1T000166/N1T000166040061/N1T000166040061-1.jpeg',
+8,
+'ZAPATILLAS'),
+
+('Jean Levis',
+'Jean clásico azul',
+52000,
+'https://lsco.scene7.com/is/image/lsco/005013305-front-pdp',
+15,
+'JEAN'),
+
+('Buzo Puma',
+'Buzo con capucha',
+35000,
+'https://images.puma.com/image/upload/f_auto,q_auto,b_rgb:fafafa/global/670123/01/mod01/fnd/ARG/fmt/png',
+10,
+'BUZO'),
+
+('Gorra Adidas',
+'Gorra negra unisex',
+14000,
+'https://assets.adidas.com/images/w_600,f_auto,q_auto/gorra.jpg',
+20,
+'GORRA');
+
+-- ==========================
+-- CARRITOS
+-- ==========================
+
+INSERT INTO carrito(usuario_id,fecha_creacion,estado)
+VALUES
+
+(2,CURDATE(),'ACTIVO'),
+
+(3,CURDATE(),'FINALIZADO');
+
+-- ==========================
+-- ITEMS
+-- ==========================
+
+INSERT INTO item_carrito
+(carrito_id,producto_id,cantidad,precio_unitario)
+VALUES
+
+(1,1,1,45000),
+
+(1,2,2,18000),
+
+(2,3,1,98000);

@@ -2,44 +2,33 @@ package org.isp63.prog1.servlets;
 
 import jakarta.servlet.ServletException;
 import jakarta.servlet.annotation.WebServlet;
-import jakarta.servlet.http.*;
-
+import jakarta.servlet.http.HttpServlet;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 import org.isp63.prog1.dao.UsuarioDao;
 import org.isp63.prog1.entities.Usuario;
-import org.isp63.prog1.interfaces.AdmConnexion;
+import org.isp63.prog1.util.Rol;
 
 import java.io.IOException;
-import java.sql.Connection;
 import java.util.List;
 
 @WebServlet("/SeUsuario")
-public class SeUsuario extends HttpServlet implements AdmConnexion {
+public class SeUsuario extends HttpServlet {
 
-  private UsuarioDao usuarioDao;
-  private Connection conn;
-
-  @Override
-  public void init() throws ServletException {
-    try {
-      conn = obtenerConexion(); // ✅ ACA se crea
-      usuarioDao = new UsuarioDao(conn);
-    } catch (Exception e) {
-      throw new ServletException("Error al inicializar SeUsuario", e);
-    }
-  }
+  private final UsuarioDao usuarioDao = new UsuarioDao();
 
   @Override
   protected void doGet(HttpServletRequest request, HttpServletResponse response)
       throws ServletException, IOException {
 
-    Usuario admin = (Usuario) request.getSession().getAttribute("usuario");
-    if (admin == null || !"admin".equalsIgnoreCase(admin.getRol())) {
-      response.sendRedirect("index.jsp");
+    if (!esAdmin(request, response)) {
       return;
     }
 
     String accion = request.getParameter("accion");
-    if (accion == null) accion = "listar";
+    if (accion == null) {
+      accion = "listar";
+    }
 
     switch (accion) {
       case "nuevo":
@@ -60,6 +49,10 @@ public class SeUsuario extends HttpServlet implements AdmConnexion {
   protected void doPost(HttpServletRequest request, HttpServletResponse response)
       throws IOException, ServletException {
 
+    if (!esAdmin(request, response)) {
+      return;
+    }
+
     String accion = request.getParameter("accion");
 
     if ("guardar".equals(accion)) {
@@ -70,8 +63,6 @@ public class SeUsuario extends HttpServlet implements AdmConnexion {
       response.sendRedirect("SeUsuario?accion=listar");
     }
   }
-
-  // ---------------- MÉTODOS ----------------
 
   private void listarUsuarios(HttpServletRequest request, HttpServletResponse response)
       throws ServletException, IOException {
@@ -102,7 +93,7 @@ public class SeUsuario extends HttpServlet implements AdmConnexion {
     u.setNombre(request.getParameter("nombre"));
     u.setEmail(request.getParameter("email"));
     u.setPassword(request.getParameter("password"));
-    u.setRol("usuario");
+    u.setRol(Rol.USUARIO);
 
     usuarioDao.insert(u);
     response.sendRedirect("SeUsuario?accion=listar");
@@ -115,7 +106,7 @@ public class SeUsuario extends HttpServlet implements AdmConnexion {
     u.setId(Integer.parseInt(request.getParameter("id")));
     u.setNombre(request.getParameter("nombre"));
     u.setEmail(request.getParameter("email"));
-    u.setRol(request.getParameter("rol"));
+    u.setRol(normalizarRol(request.getParameter("rol")));
 
     usuarioDao.update(u);
     response.sendRedirect("SeUsuario?accion=listar");
@@ -129,13 +120,16 @@ public class SeUsuario extends HttpServlet implements AdmConnexion {
     response.sendRedirect("SeUsuario?accion=listar");
   }
 
-  @Override
-  public void destroy() {
-    try {
-      if (conn != null) conn.close();
-    } catch (Exception e) {
-      e.printStackTrace();
+  private boolean esAdmin(HttpServletRequest request, HttpServletResponse response) throws IOException {
+    Usuario admin = (Usuario) request.getSession().getAttribute("usuario");
+    if (admin == null || !Rol.esAdmin(admin.getRol())) {
+      response.sendRedirect("index.jsp");
+      return false;
     }
+    return true;
+  }
+
+  private String normalizarRol(String rol) {
+    return Rol.esAdmin(rol) ? Rol.ADMIN : Rol.USUARIO;
   }
 }
-

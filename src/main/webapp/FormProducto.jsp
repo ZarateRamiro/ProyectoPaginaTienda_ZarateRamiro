@@ -1,69 +1,180 @@
-<%@ page contentType="text/html;charset=UTF-8" language="java" %>
+﻿<%@ page import="org.isp63.prog1.enums.TipoProducto" %>
 <%@ page import="org.isp63.prog1.entities.Producto" %>
+<%@ page contentType="text/html;charset=UTF-8" language="java" %>
+
+<%@ include file="header.jsp" %>
 
 <%
-    // Verificamos si se envió un producto desde el servlet (modo edición)
     Producto producto = (Producto) request.getAttribute("producto");
-    boolean esEdicion = (producto != null);
+    boolean esEdicion = producto != null;
 %>
 
-<!DOCTYPE html>
-<html lang="es">
-<head>
-    <meta charset="UTF-8">
-    <title><%= esEdicion ? "Editar Producto" : "Agregar Nuevo Producto" %></title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-</head>
+<main class="container my-4">
+    <div class="row justify-content-center">
+        <div class="col-12 col-lg-8">
 
-<body class="bg-light">
+            <h2 class="mb-3">
+                <%= esEdicion ? "Editar producto" : "Agregar producto" %>
+            </h2>
 
-    <div class="container my-5">
-        <h2 class="text-center mb-4">
-            <%= esEdicion ? "Editar Producto" : "Agregar Nuevo Producto" %>
-        </h2>
+            <form action="SeProducto" method="post" class="bg-white border rounded-2 p-4">
 
-        <!-- 👇 Aquí va el formulario que sirve tanto para crear como editar -->
-        <form action="SeProducto" method="POST"
+                <% if (esEdicion) { %>
+                    <input type="hidden" name="id" value="<%= producto.getId() %>">
+                <% } %>
 
-            <!-- Campo oculto para el id (solo si es edición) -->
-            <% if (esEdicion) { %>
-                <input type="hidden" name="id" value="<%= producto.getId() %>">
-            <% } %>
+                <input type="hidden"
+                       name="accion"
+                       value="<%= esEdicion ? "actualizar" : "guardar" %>">
 
-            <!-- Campo oculto para definir la acción -->
-            <input type="hidden" name="accion" value="<%= esEdicion ? "actualizar" : "guardar" %>">
+                <div class="row g-3">
 
-            <div class="mb-3">
-                <label for="nombre" class="form-label">Nombre</label>
-                <input type="text" class="form-control" id="nombre" name="nombre"
-                       value="<%= esEdicion ? producto.getNombre() : "" %>" required>
-            </div>
+                    <div class="col-12 col-md-6">
+                        <label class="form-label" for="nombre">Nombre</label>
 
-            <div class="mb-3">
-                <label for="descripcion" class="form-label">Descripción</label>
-                <textarea class="form-control" id="descripcion" name="descripcion" rows="3" required><%= esEdicion ? producto.getDescripcion() : "" %></textarea>
-            </div>
+                        <input
+                                type="text"
+                                class="form-control"
+                                id="nombre"
+                                name="nombre"
+                                value="<%= esEdicion ? producto.getNombre() : "" %>"
+                                required>
+                    </div>
 
-            <div class="mb-3">
-                <label for="precio" class="form-label">Precio</label>
-                <input type="number" step="0.01" class="form-control" id="precio" name="precio"
-                       value="<%= esEdicion ? producto.getPrecio() : "" %>" required>
-            </div>
+                    <div class="col-12 col-md-6">
 
-            <div class="mb-3">
-                <label for="imagen" class="form-label">URL de Imagen</label>
-                <input type="text" class="form-control" id="imagen" name="imagen"
-                       value="<%= esEdicion ? producto.getImagen() : "" %>" required>
-            </div>
+                        <label class="form-label" for="tipo">
+                            Tipo de producto
+                        </label>
 
-            <div class="d-grid gap-2 d-md-flex justify-content-md-end">
-                <a href="productosAdmin.jsp" class="btn btn-secondary me-md-2">Cancelar</a>
-                <button type="submit" class="btn btn-success">
-                    <%= esEdicion ? "Actualizar" : "Guardar" %> Producto
-                </button>
-            </div>
-        </form>
+                        <select class="form-select"
+                                id="tipo"
+                                name="tipo"
+                                required>
+
+                            <option value="">
+                                Seleccionar tipo
+                            </option>
+
+                            <% for (TipoProducto tipo : TipoProducto.values()) { %>
+
+                                <option
+                                        value="<%= tipo.name() %>"
+                                        <%= esEdicion && producto.getTipo() == tipo ? "selected" : "" %>>
+
+                                    <%= tipo.getDescripcion() %>
+
+                                </option>
+
+                            <% } %>
+
+                        </select>
+
+                    </div>
+
+                    <div class="col-12">
+
+                        <label class="form-label"
+                               for="descripcion">
+
+                            Descripción
+
+                        </label>
+
+                        <textarea
+                                class="form-control"
+                                id="descripcion"
+                                name="descripcion"
+                                rows="3"
+                                required><%= esEdicion ? producto.getDescripcion() : "" %></textarea>
+
+                    </div>
+
+                    <div class="col-12 col-md-4">
+
+                        <label class="form-label"
+                               for="precio">
+
+                            Precio
+
+                        </label>
+
+                        <input
+                                type="number"
+                                step="0.01"
+                                min="0"
+                                class="form-control"
+                                id="precio"
+                                name="precio"
+                                value="<%= esEdicion ? producto.getPrecio() : "" %>"
+                                required>
+
+                    </div>
+
+                    <div class="col-12 col-md-4">
+
+                        <label class="form-label"
+                               for="stock">
+
+                            Stock
+
+                        </label>
+
+                        <input
+                                type="number"
+                                min="0"
+                                class="form-control"
+                                id="stock"
+                                name="stock"
+                                value="<%= esEdicion ? producto.getStock() : "" %>"
+                                required>
+
+                    </div>
+
+                    <div class="col-12">
+
+                        <label class="form-label"
+                               for="imagen">
+
+                            URL de la imagen
+
+                        </label>
+
+                        <input
+                                type="url"
+                                class="form-control"
+                                id="imagen"
+                                name="imagen"
+                                value="<%= esEdicion ? producto.getImagen() : "" %>"
+                                required>
+
+                    </div>
+
+                </div>
+
+                <div class="d-flex justify-content-end gap-2 mt-4">
+
+                    <a href="SeProducto?accion=listar"
+                       class="btn btn-outline-secondary">
+
+                        Cancelar
+
+                    </a>
+
+                    <button type="submit"
+                            class="btn btn-success">
+
+                        <%= esEdicion ? "Actualizar" : "Guardar" %>
+
+                    </button>
+
+                </div>
+
+            </form>
+
+        </div>
     </div>
+</main>
 
 </body>
 </html>

@@ -1,130 +1,172 @@
 package org.isp63.prog1.dao;
 
 import org.isp63.prog1.entities.Usuario;
+import org.isp63.prog1.interfaces.AdmConnexion;
+import org.isp63.prog1.interfaces.DAO;
+import org.isp63.prog1.util.Rol;
 
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.sql.Statement;
 import java.util.ArrayList;
 import java.util.List;
 
-public class UsuarioDao {
+public class UsuarioDao implements AdmConnexion, DAO<Usuario, Integer> {
 
-  private Connection conn;
-
-  public UsuarioDao(Connection conn) {
-    this.conn = conn;
-  }
+  private static final String SQL_GETALL = "SELECT id, nombre, email, password, rol FROM usuario ORDER BY nombre";
+  private static final String SQL_GETALL_USUARIOS =
+      "SELECT id, nombre, email, password, rol FROM usuario WHERE rol = ? ORDER BY nombre";
+  private static final String SQL_GETBYID = "SELECT id, nombre, email, password, rol FROM usuario WHERE id = ?";
+  private static final String SQL_LOGIN =
+      "SELECT id, nombre, email, password, rol FROM usuario WHERE nombre = ? AND password = ?";
+  private static final String SQL_INSERT =
+      "INSERT INTO usuario (nombre, email, password, rol) VALUES (?, ?, ?, ?)";
+  private static final String SQL_UPDATE =
+      "UPDATE usuario SET nombre = ?, email = ?, rol = ? WHERE id = ?";
+  private static final String SQL_DELETE = "DELETE FROM usuario WHERE id = ?";
 
   public Usuario validarLogin(String nombre, String password) {
-    Usuario u = null;
-    String sql = "SELECT * FROM usuario WHERE nombre = ? AND password = ?";
+    try (Connection conn = obtenerConexion();
+         PreparedStatement pst = conn.prepareStatement(SQL_LOGIN)) {
 
-    try (PreparedStatement ps = conn.prepareStatement(sql)) {
-      ps.setString(1, nombre);
-      ps.setString(2, password);
+      pst.setString(1, nombre);
+      pst.setString(2, password);
 
-      try (ResultSet rs = ps.executeQuery()) {
+      try (ResultSet rs = pst.executeQuery()) {
         if (rs.next()) {
-          u = new Usuario(
-              rs.getInt("id"),
-              rs.getString("nombre"),
-              rs.getString("email"),
-              rs.getString("password"),
-              rs.getString("rol")
-          );
+          return mapearUsuario(rs);
         }
       }
     } catch (SQLException e) {
-      e.printStackTrace();
+      throw new RuntimeException("Error al validar login", e);
     }
-    return u;
+
+    return null;
   }
 
   public List<Usuario> getAllUsuariosComunes() {
-    List<Usuario> lista = new ArrayList<>();
-    String sql = "SELECT * FROM usuario WHERE rol = 'usuario' ORDER BY nombre";
-
-    try (PreparedStatement ps = conn.prepareStatement(sql);
-         ResultSet rs = ps.executeQuery()) {
-
-      while (rs.next()) {
-        Usuario u = new Usuario(
-            rs.getInt("id"),
-            rs.getString("nombre"),
-            rs.getString("email"),
-            rs.getString("password"),
-            rs.getString("rol")
-        );
-        lista.add(u);
-      }
-    } catch (SQLException e) {
-      e.printStackTrace();
-    }
-    return lista;
+    return getByRol(Rol.USUARIO);
   }
 
-  public Usuario getById(int id) {
-    Usuario u = null;
-    String sql = "SELECT * FROM usuario WHERE id = ?";
+  public List<Usuario> getByRol(String rol) {
+    List<Usuario> lista = new ArrayList<>();
 
-    try (PreparedStatement ps = conn.prepareStatement(sql)) {
-      ps.setInt(1, id);
+    try (Connection conn = obtenerConexion();
+         PreparedStatement pst = conn.prepareStatement(SQL_GETALL_USUARIOS)) {
 
-      try (ResultSet rs = ps.executeQuery()) {
-        if (rs.next()) {
-          u = new Usuario(
-              rs.getInt("id"),
-              rs.getString("nombre"),
-              rs.getString("email"),
-              rs.getString("password"),
-              rs.getString("rol")
-          );
+      pst.setString(1, rol);
+
+      try (ResultSet rs = pst.executeQuery()) {
+        while (rs.next()) {
+          lista.add(mapearUsuario(rs));
         }
       }
     } catch (SQLException e) {
-      e.printStackTrace();
+      throw new RuntimeException("Error al obtener usuarios por rol", e);
     }
-    return u;
+
+    return lista;
   }
 
-  public void insert(Usuario u) {
-    String sql = "INSERT INTO usuario (nombre, email, password, rol) VALUES (?, ?, ?, ?)";
+  @Override
+  public List<Usuario> getAll() {
+    List<Usuario> lista = new ArrayList<>();
 
-    try (PreparedStatement ps = conn.prepareStatement(sql)) {
-      ps.setString(1, u.getNombre());
-      ps.setString(2, u.getEmail());
-      ps.setString(3, u.getPassword());
-      ps.setString(4, u.getRol());
-      ps.executeUpdate();
+    try (Connection conn = obtenerConexion();
+         PreparedStatement pst = conn.prepareStatement(SQL_GETALL);
+         ResultSet rs = pst.executeQuery()) {
+
+      while (rs.next()) {
+        lista.add(mapearUsuario(rs));
+      }
     } catch (SQLException e) {
-      e.printStackTrace();
+      throw new RuntimeException("Error al obtener usuarios", e);
+    }
+
+    return lista;
+  }
+
+  @Override
+  public void insert(Usuario usuario) {
+    try (Connection conn = obtenerConexion();
+         PreparedStatement pst = conn.prepareStatement(SQL_INSERT, Statement.RETURN_GENERATED_KEYS)) {
+
+      pst.setString(1, usuario.getNombre());
+      pst.setString(2, usuario.getEmail());
+      pst.setString(3, usuario.getPassword());
+      pst.setString(4, usuario.getRol());
+      pst.executeUpdate();
+
+      try (ResultSet rs = pst.getGeneratedKeys()) {
+        if (rs.next()) {
+          usuario.setId(rs.getInt(1));
+        }
+      }
+    } catch (SQLException e) {
+      throw new RuntimeException("Error al insertar usuario", e);
     }
   }
 
-  public void update(Usuario u) {
-    String sql = "UPDATE usuario SET nombre = ?, email = ?, rol = ? WHERE id = ?";
+  @Override
+  public void update(Usuario usuario) {
+    try (Connection conn = obtenerConexion();
+         PreparedStatement pst = conn.prepareStatement(SQL_UPDATE)) {
 
-    try (PreparedStatement ps = conn.prepareStatement(sql)) {
-      ps.setString(1, u.getNombre());
-      ps.setString(2, u.getEmail());
-      ps.setString(3, u.getRol());
-      ps.setInt(4, u.getId());
-      ps.executeUpdate();
+      pst.setString(1, usuario.getNombre());
+      pst.setString(2, usuario.getEmail());
+      pst.setString(3, usuario.getRol());
+      pst.setInt(4, usuario.getId());
+      pst.executeUpdate();
     } catch (SQLException e) {
-      e.printStackTrace();
+      throw new RuntimeException("Error al actualizar usuario", e);
     }
   }
 
-  public void delete(int id) {
-    String sql = "DELETE FROM usuario WHERE id = ?";
+  @Override
+  public void delete(Integer id) {
+    try (Connection conn = obtenerConexion();
+         PreparedStatement pst = conn.prepareStatement(SQL_DELETE)) {
 
-    try (PreparedStatement ps = conn.prepareStatement(sql)) {
-      ps.setInt(1, id);
-      ps.executeUpdate();
+      pst.setInt(1, id);
+      pst.executeUpdate();
     } catch (SQLException e) {
-      e.printStackTrace();
+      throw new RuntimeException("Error al eliminar usuario", e);
     }
+  }
+
+  @Override
+  public Usuario getById(Integer id) {
+    try (Connection conn = obtenerConexion();
+         PreparedStatement pst = conn.prepareStatement(SQL_GETBYID)) {
+
+      pst.setInt(1, id);
+
+      try (ResultSet rs = pst.executeQuery()) {
+        if (rs.next()) {
+          return mapearUsuario(rs);
+        }
+      }
+    } catch (SQLException e) {
+      throw new RuntimeException("Error al obtener usuario por id", e);
+    }
+
+    return null;
+  }
+
+  @Override
+  public boolean existsById(Integer id) {
+    return getById(id) != null;
+  }
+
+  private Usuario mapearUsuario(ResultSet rs) throws SQLException {
+    return new Usuario(
+        rs.getInt("id"),
+        rs.getString("nombre"),
+        rs.getString("email"),
+        rs.getString("password"),
+        rs.getString("rol")
+    );
   }
 }

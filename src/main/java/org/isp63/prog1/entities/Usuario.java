@@ -10,10 +10,6 @@ public class Usuario {
 
   public Usuario() {}
 
-  public Usuario(int id, String nombre, String password, String rol) {
-    this.id = id;
-  }
-
   public Usuario(int id, String nombre, String email, String password, String rol) {
     this.id = id;
     this.nombre = nombre;

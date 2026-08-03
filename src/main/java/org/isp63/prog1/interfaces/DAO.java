@@ -2,13 +2,11 @@ package org.isp63.prog1.interfaces;
 
 import java.util.List;
 
-public interface DAO<O,K> {
-  // O objeto K key clave primaria
-
-  public List<O> getAll();
-  public void insert(O objeto);
-  public void update(O objeto);
-  public void delete(K id);
-  public O getById(K id);
-  public boolean existsById(K id);
+public interface DAO<O, K> {
+  List<O> getAll();
+  void insert(O objeto);
+  void update(O objeto);
+  void delete(K id);
+  O getById(K id);
+  boolean existsById(K id);
 }

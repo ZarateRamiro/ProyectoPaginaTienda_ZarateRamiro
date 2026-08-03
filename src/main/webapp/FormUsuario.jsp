@@ -56,12 +56,12 @@
         <div class="mb-3">
             <label class="form-label">Rol</label>
             <select name="rol" class="form-select">
-                <option value="usuario"
-                    <%= esEdicion && "usuario".equalsIgnoreCase(usuario.getRol()) ? "selected" : "" %>>
+                <option value="USUARIO"
+                    <%= esEdicion && "USUARIO".equalsIgnoreCase(usuario.getRol()) ? "selected" : "" %>>
                     Usuario
                 </option>
-                <option value="admin"
-                    <%= esEdicion && "admin".equalsIgnoreCase(usuario.getRol()) ? "selected" : "" %>>
+                <option value="ADMIN"
+                    <%= esEdicion && "ADMIN".equalsIgnoreCase(usuario.getRol()) ? "selected" : "" %>>
                     Administrador
                 </option>
             </select>
