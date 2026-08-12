@@ -6,7 +6,7 @@ USE tienda;
 
 INSERT INTO usuario(nombre,email,password,rol)
 VALUES
-('Administrador','admin@tienda.com','admin','ADMINISTRADOR'),
+('Administrador','admin@tienda.com','admin','ADMIN'),
 
 ('Juan Perez','juan@gmail.com','1234','USUARIO'),
 

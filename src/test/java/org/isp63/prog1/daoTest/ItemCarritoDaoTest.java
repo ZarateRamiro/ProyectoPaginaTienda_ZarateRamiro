@@ -48,7 +48,7 @@ class ItemCarritoDAOTest {
           "nombre VARCHAR(100) NOT NULL, " +
           "email VARCHAR(100) NOT NULL UNIQUE, " +
           "password VARCHAR(100) NOT NULL, " +
-          "rol ENUM('ADMINISTRADOR','USUARIO') NOT NULL)");
+          "rol ENUM('ADMIN','USUARIO') NOT NULL)");
 
       // 2. Tabla producto
       st.execute("CREATE TABLE producto (" +
