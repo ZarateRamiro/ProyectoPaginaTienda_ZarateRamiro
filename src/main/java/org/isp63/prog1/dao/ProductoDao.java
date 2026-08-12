@@ -182,5 +182,63 @@ public class ProductoDao implements AdmConnexion, DAO<Producto, Integer> {
 
     return producto;
   }
+// ==========================================
+  // MÉTODOS CONSULTAS CON PROGRAMACIÓN FUNCIONAL Y STREAMS
+  // ==========================================
 
+  /**
+   * Filtra productos por su TipoProducto enum.
+   */
+  public List<Producto> getByTipo(TipoProducto tipo) {
+    return getAll().stream()
+        .filter(p -> p.getTipo() == tipo)
+        .toList();
+  }
+
+  /**
+   * Busca productos cuyo nombre contenga el término (ignora mayúsculas/minúsculas).
+   */
+  public List<Producto> buscarPorNombre(String termino) {
+    if (termino == null || termino.isBlank()) {
+      return List.of();
+    }
+    return getAll().stream()
+        .filter(p -> p.getNombre().toLowerCase().contains(termino.toLowerCase()))
+        .toList();
+  }
+
+  /**
+   * Obtiene todos los productos disponibles con stock mayor a cero.
+   */
+  public List<Producto> getProductosConStock() {
+    return getAll().stream()
+        .filter(p -> p.getStock() > 0)
+        .toList();
+  }
+
+  /**
+   * Alerta de inventario: obtiene productos con stock igual o inferior al mínimo configurado.
+   */
+  public List<Producto> getProductosBajoStock(int limiteMinimo) {
+    return getAll().stream()
+        .filter(p -> p.getStock() <= limiteMinimo)
+        .toList();
+  }
+
+  /**
+   * Obtiene el producto de mayor valor.
+   */
+  public java.util.Optional<Producto> getProductoMasCaro() {
+    return getAll().stream()
+        .max(java.util.Comparator.comparingDouble(Producto::getPrecio));
+  }
+
+  /**
+   * Filtra productos en un rango de precios.
+   */
+  public List<Producto> getByRangoPrecio(double precioMin, double precioMax) {
+    return getAll().stream()
+        .filter(p -> p.getPrecio() >= precioMin && p.getPrecio() <= precioMax)
+        .toList();
+  }
 }
