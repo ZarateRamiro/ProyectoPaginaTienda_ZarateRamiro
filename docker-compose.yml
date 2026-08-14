@@ -1,0 +1,39 @@
+services:
+  mysql:
+    image: mysql:8.4
+    container_name: tienda-mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: tienda
+    ports:
+      - "3307:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+      - ./src/main/resources/bd/Tienda.sql:/docker-entrypoint-initdb.d/01-tienda.sql:ro
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-uroot", "-proot"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  app:
+    build: .
+    container_name: tienda-app
+    restart: unless-stopped
+    depends_on:
+      mysql:
+        condition: service_healthy
+    environment:
+      DB_URL: jdbc:mysql://mysql:3307/tienda?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC
+      DB_USER: root
+      DB_PASS: root
+      JAVA_OPTS: >-
+        -Ddb.url=jdbc:mysql://mysql:3307/tienda?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC
+        -Ddb.user=root
+        -Ddb.pass=root
+    ports:
+      - "8080:8080"
+
+volumes:
+  mysql_data:

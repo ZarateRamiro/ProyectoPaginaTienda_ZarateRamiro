@@ -1,0 +1,62 @@
+name: CI / Integration Pipeline
+
+# Declara cuándo se ejecuta este Workflow
+on:
+  push:
+    branches: [ main, master, develop ]
+  pull_request:
+
+jobs:
+  build-and-test:
+    name: Build, Test & Report Coverage
+    runs-on: ubuntu-latest
+
+    steps:
+      # 1. Descarga el código fuente del repositorio en la máquina de GitHub Actions
+      - name: Checkout del código
+        uses: actions/checkout@v4
+
+      # 2. Configura el entorno de Java (JDK 17) con cache de Maven para acelerar futuras ejecuciones
+      - name: Configurar JDK 17 (Temurin)
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+          cache: 'maven'
+
+      # 3. Compila, ejecuta Testcontainers/JUnit y genera el informe de JaCoCo.
+      # Nota: 'verify' ya compila el proyecto y empaqueta el WAR si los tests pasan.
+      - name: Ejecutar pruebas e integración (Build & Test)
+        run: mvn -B clean verify
+
+      # 4. Genera una tabla resumida con la cobertura de JaCoCo directamente en la pestaña "Summary" del Run de GitHub
+      - name: Publicar reporte de cobertura de JaCoCo
+        uses: madrazo/jacoco-report-action@v1.6.1
+        if: always() # Se ejecuta aunque fallen algunos tests para ver la cobertura alcanzada
+        with:
+          paths: ${{ github.workspace }}/target/site/jacoco/jacoco.xml
+          token: ${{ secrets.GITHUB_TOKEN }}
+          min-coverage-overall: 70
+          min-coverage-changed-files: 70
+
+      # 5. Guarda el empaquetado WAR generado en 'target/' como un artefacto descargable en GitHub
+      - name: Subir artefacto WAR
+        uses: actions/upload-artifact@v4
+        with:
+          name: tiendaWebProyecto-war
+          path: target/*.war
+          retention-days: 7 # Días que se conservará el archivo en GitHub
+
+  docker-build:
+    name: Build Docker Image
+    runs-on: ubuntu-latest
+    needs: build-and-test # Solo arranca si el Job de tests finalizó con éxito (Pass)
+
+    steps:
+      # 1. Descarga el código para poder leer el Dockerfile y contexto del proyecto
+      - name: Checkout del código
+        uses: actions/checkout@v4
+
+      # 2. Verifica que el Dockerfile sea válido construyendo la imagen en el entorno de CI
+      - name: Construir imagen Docker
+        run: docker build -t tienda-web-proyecto:ci .
