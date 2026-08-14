@@ -12,12 +12,22 @@ import org.isp63.prog1.entities.Usuario;
 import java.io.IOException;
 
 @WebServlet("/login")
-public class SeLogin extends HttpServlet {
+public class LoginServlet extends HttpServlet {
 
-  private final UsuarioDao usuarioDao = new UsuarioDao();
+  private final UsuarioDao usuarioDao;
+
+  // Constructor para Tomcat / Producción
+  public LoginServlet() {
+    this(new UsuarioDao());
+  }
+
+  // Constructor para Tests Unitarios
+  public LoginServlet(UsuarioDao usuarioDao) {
+    this.usuarioDao = usuarioDao;
+  }
 
   @Override
-  protected void doPost(HttpServletRequest request, HttpServletResponse response)
+  public void doPost(HttpServletRequest request, HttpServletResponse response)
       throws ServletException, IOException {
 
     String nombre = request.getParameter("nombre");

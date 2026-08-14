@@ -13,12 +13,20 @@ import java.io.IOException;
 import java.util.List;
 
 @WebServlet(name = "SeProducto", urlPatterns = {"/SeProducto"})
-public class SeProducto extends HttpServlet {
+public class ProductoServlet extends HttpServlet {private final ProductoDao productoDao;
 
-  private final ProductoDao productoDao = new ProductoDao();
+  // Constructor que usa Tomcat en producción
+  public ProductoServlet() {
+    this(new ProductoDao());
+  }
+
+  // Constructor para inyectar el Mock en los tests
+  public ProductoServlet(ProductoDao productoDao) {
+    this.productoDao = productoDao;
+  }
 
   @Override
-  protected void doGet(HttpServletRequest request, HttpServletResponse response)
+  public void doGet(HttpServletRequest request, HttpServletResponse response)
       throws ServletException, IOException {
 
     String accion = request.getParameter("accion");
@@ -53,7 +61,7 @@ public class SeProducto extends HttpServlet {
   }
 
   @Override
-  protected void doPost(HttpServletRequest request, HttpServletResponse response)
+  public void doPost(HttpServletRequest request, HttpServletResponse response)
       throws ServletException, IOException {
 
     String accion = request.getParameter("accion");

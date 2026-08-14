@@ -3,126 +3,119 @@ package org.isp63.prog1.daoTest;
 import org.isp63.prog1.dao.CarritoDao;
 import org.isp63.prog1.entities.Carrito;
 import org.isp63.prog1.entities.Usuario;
+import org.isp63.prog1.interfaces.AdminConexion;
+import org.isp63.prog1.util.ConexionPool;
+import org.isp63.prog1.util.Rol;
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.Mock;
-import org.mockito.junit.jupiter.MockitoExtension;
+import org.testcontainers.containers.MySQLContainer;
 
-import java.sql.*;
+import java.sql.Connection;
+import java.sql.DriverManager;
+import java.sql.SQLException;
+import java.sql.Statement;
 import java.time.LocalDate;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.mockito.ArgumentMatchers.*;
-import static org.mockito.Mockito.*;
 
-@ExtendWith(MockitoExtension.class)
 class CarritoDaoTest {
 
-  @Mock private Connection mockConnection;
-  @Mock private PreparedStatement mockPreparedStatement;
-  @Mock private ResultSet mockResultSet;
+  // Inicialización manual para asegurar el orden estricto antes de tocar ConexionPool
+  static MySQLContainer<?> mysql = new MySQLContainer<>("mysql:8.0")
+      .withDatabaseName("tienda")
+      .withUsername("test")
+      .withPassword("test");
 
   private CarritoDao carritoDao;
+  private Usuario usuarioBase;
+
+  @BeforeAll
+  static void setupDatabase() throws Exception {
+    // 1. Iniciar el contenedor manualmente si no está corriendo
+    if (!mysql.isRunning()) {
+      mysql.start();
+    }
+
+    // 2. Setear las propiedades del sistema inmediatamente después de arrancar
+    System.setProperty("db.url", mysql.getJdbcUrl());
+    System.setProperty("db.user", mysql.getUsername());
+    System.setProperty("db.pass", mysql.getPassword());
+    System.setProperty("db.password", mysql.getPassword()); // Seteamos ambas por compatibilidad
+
+    // 3. Forzar el reinicio/recarga del pool de conexiones con la URL de Testcontainers
+    ConexionPool.close();
+    AdminConexion.INSTANCE.recargarPoolParaTests();
+
+    // 4. Crear la estructura inicial del schema
+    try (Connection conn = DriverManager.getConnection(mysql.getJdbcUrl(), mysql.getUsername(), mysql.getPassword());
+         Statement st = conn.createStatement()) {
+
+      st.execute("CREATE TABLE IF NOT EXISTS usuario (" +
+          "id INT AUTO_INCREMENT PRIMARY KEY, " +
+          "nombre VARCHAR(100) NOT NULL, " +
+          "email VARCHAR(100) NOT NULL UNIQUE, " +
+          "password VARCHAR(100) NOT NULL, " +
+          "rol ENUM('ADMIN','USUARIO') NOT NULL)");
+
+      st.execute("CREATE TABLE IF NOT EXISTS carrito (" +
+          "id INT AUTO_INCREMENT PRIMARY KEY, " +
+          "usuario_id INT NOT NULL, " +
+          "fecha_creacion DATE NOT NULL, " +
+          "estado VARCHAR(20) NOT NULL, " +
+          "CONSTRAINT fk_carrito_usuario FOREIGN KEY(usuario_id) " +
+          "REFERENCES usuario(id) ON DELETE CASCADE ON UPDATE CASCADE)");
+    }
+  }
 
   @BeforeEach
-  void setUp() throws SQLException {
-    // Usamos spy e interceptamos la conexión para que no se conecte a la BD real
-    carritoDao = spy(new CarritoDao());
-    lenient().doReturn(mockConnection).when(carritoDao).obtenerConexion();
+  void setUp() throws Exception {
+    carritoDao = new CarritoDao();
+
+    try (Connection conn = DriverManager.getConnection(mysql.getJdbcUrl(), mysql.getUsername(), mysql.getPassword());
+         Statement st = conn.createStatement()) {
+
+      // Desactivamos FK momentáneamente para truncar ambas tablas sin orden estricto
+      st.execute("SET FOREIGN_KEY_CHECKS = 0");
+      st.execute("TRUNCATE TABLE carrito");
+      st.execute("TRUNCATE TABLE usuario");
+      st.execute("SET FOREIGN_KEY_CHECKS = 1");
+
+      // Insertamos un usuario base para poder crear carritos en cada test
+      st.execute("INSERT INTO usuario (id, nombre, email, password, rol) " +
+          "VALUES (1, 'Juan Perez', 'juan@mail.com', '123456', 'USUARIO')");
+    }
+
+    usuarioBase = new Usuario(1, "Juan Perez", "juan@mail.com", "123456", Rol.USUARIO);
   }
 
   // =================================================================================
-  // TESTS PARA INSERT
+  // TESTS PARA INSERT / GET BY ID
   // =================================================================================
 
   @Test
-  void insert_DeberiaInsertarCarritoYSetearIdGenerado() throws SQLException {
-    // ARRANGE
-    when(mockConnection.prepareStatement(anyString(), eq(Statement.RETURN_GENERATED_KEYS)))
-        .thenReturn(mockPreparedStatement);
-    when(mockPreparedStatement.executeUpdate()).thenReturn(1);
-    when(mockPreparedStatement.getGeneratedKeys()).thenReturn(mockResultSet);
-    when(mockResultSet.next()).thenReturn(true);
-    when(mockResultSet.getInt(1)).thenReturn(42);
+  void deberia_InsertarYObtenerCarrito_Cuando_DatosSonValidos() {
+    // --- 1. ARRANGE ---
+    Carrito nuevoCarrito = new Carrito(null, usuarioBase, LocalDate.of(2026, 8, 3), "ACTIVO");
 
-    Usuario usuario = new Usuario();
-    usuario.setId(10);
-
-    Carrito nuevoCarrito = new Carrito(null, usuario, LocalDate.of(2026, 8, 3), "ACTIVO");
-
-    // ACT
+    // --- 2. ACT ---
     carritoDao.insert(nuevoCarrito);
+    Carrito recuperado = carritoDao.getById(nuevoCarrito.getId());
 
-    // ASSERT
-    verify(mockPreparedStatement).setInt(1, 10);
-    verify(mockPreparedStatement).setDate(2, Date.valueOf(LocalDate.of(2026, 8, 3)));
-    verify(mockPreparedStatement).setString(3, "ACTIVO");
-
-    assertThat(nuevoCarrito.getId()).isEqualTo(42);
+    // --- 3. ASSERT ---
+    assertThat(nuevoCarrito.getId()).isGreaterThan(0);
+    assertThat(recuperado).isNotNull();
+    assertThat(recuperado.getEstado()).isEqualTo("ACTIVO");
+    assertThat(recuperado.getFechaDeCreacion()).isEqualTo(LocalDate.of(2026, 8, 3));
+    assertThat(recuperado.getUsuario().getId()).isEqualTo(1);
+    assertThat(recuperado.getUsuario().getNombre()).isEqualTo("Juan Perez");
   }
 
   @Test
-  void insert_DeberiaLanzarRuntimeException_SiFallaSQL() throws SQLException {
-    // ARRANGE
-    when(mockConnection.prepareStatement(anyString(), eq(Statement.RETURN_GENERATED_KEYS)))
-        .thenThrow(new SQLException("Conexión perdida"));
-
-    Usuario u = new Usuario();
-    u.setId(1);
-    Carrito carrito = new Carrito(null, u, LocalDate.now(), "ACTIVO");
-
-    // ACT & ASSERT
-    RuntimeException excepcion = assertThrows(RuntimeException.class, () -> carritoDao.insert(carrito));
-    assertThat(excepcion.getMessage()).contains("Error al insertar carrito");
-  }
-
-  // =================================================================================
-  // TESTS PARA GET BY ID
-  // =================================================================================
-
-  @Test
-  void getById_DeberiaRetornarCarritoMapeado_CuandoExiste() throws SQLException {
-    // ARRANGE
-    when(mockConnection.prepareStatement(anyString())).thenReturn(mockPreparedStatement);
-    when(mockPreparedStatement.executeQuery()).thenReturn(mockResultSet);
-
-    when(mockResultSet.next()).thenReturn(true);
-    when(mockResultSet.getInt("id")).thenReturn(5);
-    when(mockResultSet.getDate("fecha_creacion")).thenReturn(Date.valueOf(LocalDate.of(2026, 8, 1)));
-    when(mockResultSet.getString("estado")).thenReturn("ACTIVO");
-
-    when(mockResultSet.getInt("usuario_id")).thenReturn(10);
-    when(mockResultSet.getString("usuario_nombre")).thenReturn("Juan Perez");
-    when(mockResultSet.getString("usuario_email")).thenReturn("juan@test.com");
-    when(mockResultSet.getString("usuario_password")).thenReturn("123456");
-    when(mockResultSet.getString("usuario_rol")).thenReturn("CLIENTE");
-
-    // ACT
-    Carrito resultado = carritoDao.getById(5);
-
-    // ASSERT
-    assertThat(resultado).isNotNull();
-    assertThat(resultado.getId()).isEqualTo(5);
-    assertThat(resultado.getEstado()).isEqualTo("ACTIVO");
-    assertThat(resultado.getUsuario().getId()).isEqualTo(10);
-    assertThat(resultado.getUsuario().getNombre()).isEqualTo("Juan Perez");
-  }
-
-  @Test
-  void getById_DeberiaRetornarNull_CuandoNoExiste() throws SQLException {
-    // ARRANGE
-    when(mockConnection.prepareStatement(anyString())).thenReturn(mockPreparedStatement);
-    when(mockPreparedStatement.executeQuery()).thenReturn(mockResultSet);
-    when(mockResultSet.next()).thenReturn(false);
-
-    // ACT
-    Carrito resultado = carritoDao.getById(99);
-
-    // ASSERT
-    assertThat(resultado).isNull();
+  void getById_DeberiaRetornarNull_CuandoNoExiste() {
+    assertThat(carritoDao.getById(999)).isNull();
   }
 
   // =================================================================================
@@ -130,62 +123,48 @@ class CarritoDaoTest {
   // =================================================================================
 
   @Test
-  void update_DeberiaActualizarCorrectamente() throws SQLException {
-    // ARRANGE
-    when(mockConnection.prepareStatement(anyString())).thenReturn(mockPreparedStatement);
-    when(mockPreparedStatement.executeUpdate()).thenReturn(1);
+  void update_DeberiaActualizarFechaYEstado() {
+    // --- 1. ARRANGE ---
+    Carrito original = new Carrito(null, usuarioBase, LocalDate.of(2026, 1, 1), "ACTIVO");
+    carritoDao.insert(original);
 
-    Usuario u = new Usuario();
-    u.setId(10);
-    Carrito carrito = new Carrito(1, u, LocalDate.of(2026, 8, 3), "FINALIZADO");
+    Carrito aEditar = carritoDao.getById(original.getId());
+    aEditar.setEstado("FINALIZADO");
+    aEditar.setFechaDeCreacion(LocalDate.of(2026, 2, 15));
 
-    // ACT
-    carritoDao.update(carrito);
+    // --- 2. ACT ---
+    carritoDao.update(aEditar);
 
-    // ASSERT
-    verify(mockPreparedStatement).setInt(1, 10);
-    verify(mockPreparedStatement).setDate(2, Date.valueOf(LocalDate.of(2026, 8, 3)));
-    verify(mockPreparedStatement).setString(3, "FINALIZADO");
-    verify(mockPreparedStatement).setInt(4, 1);
-    verify(mockPreparedStatement).executeUpdate();
-  }
-
-  @Test
-  void update_DeberiaLanzarRuntimeException_SiFallaSQL() throws SQLException {
-    when(mockConnection.prepareStatement(anyString())).thenThrow(new SQLException("Error en la BD"));
-
-    Usuario u = new Usuario();
-    u.setId(1);
-    Carrito carrito = new Carrito(1, u, LocalDate.now(), "ACTIVO");
-
-    RuntimeException excepcion = assertThrows(RuntimeException.class, () -> carritoDao.update(carrito));
-    assertThat(excepcion.getMessage()).contains("Error al actualizar carrito");
+    // --- 3. ASSERT ---
+    Carrito modificado = carritoDao.getById(original.getId());
+    assertThat(modificado.getEstado()).isEqualTo("FINALIZADO");
+    assertThat(modificado.getFechaDeCreacion()).isEqualTo(LocalDate.of(2026, 2, 15));
   }
 
   // =================================================================================
-  // TESTS PARA DELETE
+  // TESTS PARA DELETE / EXISTS
   // =================================================================================
 
   @Test
-  void delete_DeberiaEliminarCorrectamente() throws SQLException {
-    // ARRANGE
-    when(mockConnection.prepareStatement(anyString())).thenReturn(mockPreparedStatement);
-    when(mockPreparedStatement.executeUpdate()).thenReturn(1);
+  void deberia_EliminarCarrito_Cuando_SeProporcionaIdValido() {
+    // --- 1. ARRANGE ---
+    Carrito carrito = new Carrito(null, usuarioBase, LocalDate.now(), "ACTIVO");
+    carritoDao.insert(carrito);
+    int id = carrito.getId();
 
-    // ACT
-    carritoDao.delete(1);
+    assertThat(carritoDao.existsById(id)).isTrue();
 
-    // ASSERT
-    verify(mockPreparedStatement).setInt(1, 1);
-    verify(mockPreparedStatement).executeUpdate();
+    // --- 2. ACT ---
+    carritoDao.delete(id);
+
+    // --- 3. ASSERT ---
+    assertThat(carritoDao.existsById(id)).isFalse();
+    assertThat(carritoDao.getById(id)).isNull();
   }
 
   @Test
-  void delete_DeberiaLanzarRuntimeException_SiFallaSQL() throws SQLException {
-    when(mockConnection.prepareStatement(anyString())).thenThrow(new SQLException("Error al borrar"));
-
-    RuntimeException excepcion = assertThrows(RuntimeException.class, () -> carritoDao.delete(99));
-    assertThat(excepcion.getMessage()).contains("Error al eliminar carrito");
+  void existsById_DeberiaRetornarFalse_CuandoNoExiste() {
+    assertThat(carritoDao.existsById(999)).isFalse();
   }
 
   // =================================================================================
@@ -193,31 +172,18 @@ class CarritoDaoTest {
   // =================================================================================
 
   @Test
-  void getAll_DeberiaRetornarListaDeCarritos() throws SQLException {
-    // ARRANGE
-    when(mockConnection.prepareStatement(anyString())).thenReturn(mockPreparedStatement);
-    when(mockPreparedStatement.executeQuery()).thenReturn(mockResultSet);
+  void getAll_DeberiaRetornarTodosLosCarritos() {
+    // --- 1. ARRANGE ---
+    carritoDao.insert(new Carrito(null, usuarioBase, LocalDate.of(2026, 1, 1), "FINALIZADO"));
+    carritoDao.insert(new Carrito(null, usuarioBase, LocalDate.of(2026, 3, 1), "ACTIVO"));
 
-    when(mockResultSet.next()).thenReturn(true, false);
-    when(mockResultSet.getInt("id")).thenReturn(1);
-    when(mockResultSet.getDate("fecha_creacion")).thenReturn(Date.valueOf(LocalDate.now()));
-    when(mockResultSet.getString("estado")).thenReturn("ACTIVO");
-    when(mockResultSet.getInt("usuario_id")).thenReturn(2);
-    when(mockResultSet.getString("usuario_nombre")).thenReturn("Maria");
+    // --- 2. ACT ---
+    List<Carrito> todos = carritoDao.getAll();
 
-    // ACT
-    List<Carrito> resultado = carritoDao.getAll();
-
-    // ASSERT
-    assertThat(resultado).hasSize(1);
-    assertThat(resultado.get(0).getId()).isEqualTo(1);
-  }
-
-  @Test
-  void getAll_DeberiaLanzarRuntimeException_AnteFallaDeBD() throws SQLException {
-    when(mockConnection.prepareStatement(anyString())).thenThrow(new SQLException("BD offline"));
-
-    assertThrows(RuntimeException.class, () -> carritoDao.getAll());
+    // --- 3. ASSERT ---
+    assertThat(todos).hasSize(2);
+    // SQL_GETALL ordena por fecha_creacion DESC
+    assertThat(todos.get(0).getFechaDeCreacion()).isEqualTo(LocalDate.of(2026, 3, 1));
   }
 
   // =================================================================================
@@ -225,114 +191,79 @@ class CarritoDaoTest {
   // =================================================================================
 
   @Test
-  void getActivoByUsuarioId_DeberiaRetornarCarritoActivo_CuandoExiste() throws SQLException {
-    // ARRANGE
-    when(mockConnection.prepareStatement(anyString())).thenReturn(mockPreparedStatement);
-    when(mockPreparedStatement.executeQuery()).thenReturn(mockResultSet);
+  void getActivoByUsuarioId_DeberiaRetornarElCarritoActivo_CuandoExiste() {
+    // --- 1. ARRANGE ---
+    carritoDao.insert(new Carrito(null, usuarioBase, LocalDate.of(2026, 1, 1), "FINALIZADO"));
+    Carrito activo = new Carrito(null, usuarioBase, LocalDate.of(2026, 2, 1), "ACTIVO");
+    carritoDao.insert(activo);
 
-    when(mockResultSet.next()).thenReturn(true);
-    when(mockResultSet.getInt("id")).thenReturn(7);
-    when(mockResultSet.getDate("fecha_creacion")).thenReturn(Date.valueOf(LocalDate.now()));
-    when(mockResultSet.getString("estado")).thenReturn("ACTIVO");
-    when(mockResultSet.getInt("usuario_id")).thenReturn(15);
+    // --- 2. ACT ---
+    Carrito resultado = carritoDao.getActivoByUsuarioId(usuarioBase.getId());
 
-    // ACT
-    Carrito resultado = carritoDao.getActivoByUsuarioId(15);
-
-    // ASSERT
+    // --- 3. ASSERT ---
     assertThat(resultado).isNotNull();
-    assertThat(resultado.getId()).isEqualTo(7);
+    assertThat(resultado.getId()).isEqualTo(activo.getId());
     assertThat(resultado.getEstado()).isEqualTo("ACTIVO");
-    verify(mockPreparedStatement).setInt(1, 15);
   }
 
   @Test
-  void obtenerOCrearActivo_DeberiaRetornarExistente_SiYaExisteUnoActivo() throws SQLException {
-    // ARRANGE
-    Usuario u = new Usuario();
-    u.setId(10);
+  void getActivoByUsuarioId_DeberiaRetornarNull_CuandoNoHayCarritoActivo() {
+    // --- 1. ARRANGE ---
+    carritoDao.insert(new Carrito(null, usuarioBase, LocalDate.of(2026, 1, 1), "FINALIZADO"));
 
-    Carrito carritoExistente = new Carrito(100, u, LocalDate.now(), "ACTIVO");
-
-    // Mockeamos la llamada interna a getActivoByUsuarioId
-    doReturn(carritoExistente).when(carritoDao).getActivoByUsuarioId(10);
-
-    // ACT
-    Carrito resultado = carritoDao.obtenerOCrearActivo(u);
-
-    // ASSERT
-    assertThat(resultado).isEqualTo(carritoExistente);
-    verify(carritoDao, never()).insert(any(Carrito.class));
+    // --- 2. ACT & ASSERT ---
+    assertThat(carritoDao.getActivoByUsuarioId(usuarioBase.getId())).isNull();
   }
 
   @Test
-  void obtenerOCrearActivo_DeberiaInsertarYNuevo_SiNoExisteActivo() throws SQLException {
-    // ARRANGE
-    Usuario u = new Usuario();
-    u.setId(10);
+  void obtenerOCrearActivo_DeberiaRetornarElExistente_SiYaHayUnoActivo() {
+    // --- 1. ARRANGE ---
+    Carrito existente = new Carrito(null, usuarioBase, LocalDate.now(), "ACTIVO");
+    carritoDao.insert(existente);
 
-    // Simulamos que no existe ningún carrito activo
-    doReturn(null).when(carritoDao).getActivoByUsuarioId(10);
-    // Evitamos ejecuciones reales de insert
-    doNothing().when(carritoDao).insert(any(Carrito.class));
+    // --- 2. ACT ---
+    Carrito resultado = carritoDao.obtenerOCrearActivo(usuarioBase);
 
-    // ACT
-    Carrito resultado = carritoDao.obtenerOCrearActivo(u);
+    // --- 3. ASSERT ---
+    assertThat(resultado.getId()).isEqualTo(existente.getId());
+    // No debería haberse creado un segundo carrito
+    assertThat(carritoDao.getAll()).hasSize(1);
+  }
 
-    // ASSERT
+  @Test
+  void obtenerOCrearActivo_DeberiaCrearUnoNuevo_SiNoHayActivo() {
+    // --- ACT ---
+    Carrito resultado = carritoDao.obtenerOCrearActivo(usuarioBase);
+
+    // --- ASSERT ---
     assertThat(resultado).isNotNull();
+    assertThat(resultado.getId()).isGreaterThan(0);
     assertThat(resultado.getEstado()).isEqualTo("ACTIVO");
-    assertThat(resultado.getUsuario().getId()).isEqualTo(10);
-    verify(carritoDao).insert(any(Carrito.class));
   }
 
   @Test
-  void marcarFinalizado_DeberiaActualizarCorrectamente_CuandoEncuentraFilas() throws SQLException {
-    // ARRANGE
-    when(mockConnection.prepareStatement(anyString())).thenReturn(mockPreparedStatement);
-    when(mockPreparedStatement.executeUpdate()).thenReturn(1); // 1 fila afectada
+  void marcarFinalizado_DeberiaActualizarEstado_CuandoElCarritoEstaActivo() throws SQLException {
+    // --- 1. ARRANGE ---
+    Carrito carrito = new Carrito(null, usuarioBase, LocalDate.now(), "ACTIVO");
+    carritoDao.insert(carrito);
 
-    // ACT & ASSERT (no lanza excepción)
-    carritoDao.marcarFinalizado(mockConnection, 5);
+    // --- 2. ACT ---
+    try (Connection conn = DriverManager.getConnection(mysql.getJdbcUrl(), mysql.getUsername(), mysql.getPassword())) {
+      carritoDao.marcarFinalizado(conn, carrito.getId());
+    }
 
-    verify(mockPreparedStatement).setInt(1, 5);
-    verify(mockPreparedStatement).executeUpdate();
+    // --- 3. ASSERT ---
+    Carrito actualizado = carritoDao.getById(carrito.getId());
+    assertThat(actualizado.getEstado()).isEqualTo("FINALIZADO");
   }
 
   @Test
-  void marcarFinalizado_DeberiaLanzarSQLException_CuandoNoAfectaFilas() throws SQLException {
-    // ARRANGE
-    when(mockConnection.prepareStatement(anyString())).thenReturn(mockPreparedStatement);
-    when(mockPreparedStatement.executeUpdate()).thenReturn(0); // 0 filas (no existe o no estaba ACTIVO)
-
-    // ACT & ASSERT
-    SQLException excepcion = assertThrows(SQLException.class, () -> carritoDao.marcarFinalizado(mockConnection, 999));
-    assertThat(excepcion.getMessage()).contains("No se pudo finalizar el carrito id 999");
-  }
-
-  @Test
-  void existsById_DeberiaRetornarTrue_SiExiste() throws SQLException {
-    // ARRANGE
-    Carrito c = new Carrito();
-    c.setId(10);
-    doReturn(c).when(carritoDao).getById(10);
-
-    // ACT
-    boolean existe = carritoDao.existsById(10);
-
-    // ASSERT
-    assertThat(existe).isTrue();
-  }
-
-  @Test
-  void existsById_DeberiaRetornarFalse_SiNoExiste() throws SQLException {
-    // ARRANGE
-    doReturn(null).when(carritoDao).getById(99);
-
-    // ACT
-    boolean existe = carritoDao.existsById(99);
-
-    // ASSERT
-    assertThat(existe).isFalse();
+  void marcarFinalizado_DeberiaLanzarSQLException_CuandoNoEncuentraCarritoActivo() throws SQLException {
+    // --- ACT & ASSERT ---
+    try (Connection conn = DriverManager.getConnection(mysql.getJdbcUrl(), mysql.getUsername(), mysql.getPassword())) {
+      SQLException excepcion = assertThrows(SQLException.class,
+          () -> carritoDao.marcarFinalizado(conn, 999));
+      assertThat(excepcion.getMessage()).contains("No se pudo finalizar el carrito id 999");
+    }
   }
 }

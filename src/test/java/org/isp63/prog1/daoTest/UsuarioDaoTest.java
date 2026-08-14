@@ -3,13 +3,12 @@ package org.isp63.prog1.daoTest;
 import org.isp63.prog1.dao.UsuarioDao;
 import org.isp63.prog1.entities.Usuario;
 import org.isp63.prog1.interfaces.AdminConexion;
+import org.isp63.prog1.util.ConexionPool;
 import org.isp63.prog1.util.Rol;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.testcontainers.containers.MySQLContainer;
-import org.testcontainers.junit.jupiter.Container;
-import org.testcontainers.junit.jupiter.Testcontainers;
 
 import java.sql.Connection;
 import java.sql.DriverManager;
@@ -18,10 +17,8 @@ import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-@Testcontainers
 class UsuarioDaoTest {
 
-  @Container
   static MySQLContainer<?> mysql = new MySQLContainer<>("mysql:8.0")
       .withDatabaseName("tienda")
       .withUsername("test")
@@ -31,16 +28,22 @@ class UsuarioDaoTest {
 
   @BeforeAll
   static void setupDatabase() throws Exception {
+    if (!mysql.isRunning()) {
+      mysql.start();
+    }
+
     System.setProperty("db.url", mysql.getJdbcUrl());
     System.setProperty("db.user", mysql.getUsername());
+    System.setProperty("db.pass", mysql.getPassword());
     System.setProperty("db.password", mysql.getPassword());
 
+    ConexionPool.close();
     AdminConexion.INSTANCE.recargarPoolParaTests();
 
     try (Connection conn = DriverManager.getConnection(mysql.getJdbcUrl(), mysql.getUsername(), mysql.getPassword());
          Statement st = conn.createStatement()) {
 
-      st.execute("CREATE TABLE usuario (" +
+      st.execute("CREATE TABLE IF NOT EXISTS usuario (" +
           "id INT AUTO_INCREMENT PRIMARY KEY, " +
           "nombre VARCHAR(100) NOT NULL, " +
           "email VARCHAR(100) NOT NULL UNIQUE, " +
@@ -56,7 +59,9 @@ class UsuarioDaoTest {
     try (Connection conn = DriverManager.getConnection(mysql.getJdbcUrl(), mysql.getUsername(), mysql.getPassword());
          Statement st = conn.createStatement()) {
 
+      st.execute("SET FOREIGN_KEY_CHECKS = 0");
       st.execute("TRUNCATE TABLE usuario");
+      st.execute("SET FOREIGN_KEY_CHECKS = 1");
     }
   }
 

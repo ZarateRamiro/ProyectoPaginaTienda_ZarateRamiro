@@ -13,12 +13,20 @@ import java.io.IOException;
 import java.util.List;
 
 @WebServlet("/SeUsuario")
-public class SeUsuario extends HttpServlet {
+public class UsuarioServlet extends HttpServlet {private final UsuarioDao usuarioDao;
 
-  private final UsuarioDao usuarioDao = new UsuarioDao();
+  // Constructor para Tomcat / Producción
+  public UsuarioServlet() {
+    this(new UsuarioDao());
+  }
+
+  // Constructor para Tests Unitarios
+  public UsuarioServlet(UsuarioDao usuarioDao) {
+    this.usuarioDao = usuarioDao;
+  }
 
   @Override
-  protected void doGet(HttpServletRequest request, HttpServletResponse response)
+  public void doGet(HttpServletRequest request, HttpServletResponse response)
       throws ServletException, IOException {
 
     if (!esAdmin(request, response)) {
@@ -46,7 +54,7 @@ public class SeUsuario extends HttpServlet {
   }
 
   @Override
-  protected void doPost(HttpServletRequest request, HttpServletResponse response)
+  public void doPost(HttpServletRequest request, HttpServletResponse response)
       throws IOException, ServletException {
 
     if (!esAdmin(request, response)) {

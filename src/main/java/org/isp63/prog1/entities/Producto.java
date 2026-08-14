@@ -19,14 +19,6 @@ public class Producto {
     this.id = id;
   }
 
-  public Producto(int id, String nombre, String descripcion, double precio, String imagen) {
-    this.id = id;
-    this.nombre = nombre;
-    this.descripcion = descripcion;
-    this.precio = precio;
-    this.imagen = imagen;
-  }
-
   public Producto(int id, String nombre, String descripcion, double precio,
                   String imagen, int stock, TipoProducto tipo) {
     this.id = id;

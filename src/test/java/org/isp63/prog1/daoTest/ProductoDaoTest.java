@@ -4,13 +4,12 @@ import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.testcontainers.containers.MySQLContainer;
-import org.testcontainers.junit.jupiter.Container;
-import org.testcontainers.junit.jupiter.Testcontainers;
 
 import org.isp63.prog1.dao.ProductoDao;
 import org.isp63.prog1.entities.Producto;
 import org.isp63.prog1.enums.TipoProducto;
 import org.isp63.prog1.interfaces.AdminConexion;
+import org.isp63.prog1.util.ConexionPool;
 
 import java.sql.Connection;
 import java.sql.DriverManager;
@@ -20,10 +19,8 @@ import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-@Testcontainers
 class ProductoDaoTest {
 
-  @Container
   static MySQLContainer<?> mysql = new MySQLContainer<>("mysql:8.0")
       .withDatabaseName("tienda")
       .withUsername("test")
@@ -33,16 +30,22 @@ class ProductoDaoTest {
 
   @BeforeAll
   static void setupDatabase() throws Exception {
+    if (!mysql.isRunning()) {
+      mysql.start();
+    }
+
     System.setProperty("db.url", mysql.getJdbcUrl());
     System.setProperty("db.user", mysql.getUsername());
+    System.setProperty("db.pass", mysql.getPassword());
     System.setProperty("db.password", mysql.getPassword());
 
+    ConexionPool.close();
     AdminConexion.INSTANCE.recargarPoolParaTests();
 
     try (Connection conn = DriverManager.getConnection(mysql.getJdbcUrl(), mysql.getUsername(), mysql.getPassword());
          Statement st = conn.createStatement()) {
 
-      st.execute("CREATE TABLE producto (" +
+      st.execute("CREATE TABLE IF NOT EXISTS producto (" +
           "id INT AUTO_INCREMENT PRIMARY KEY, " +
           "nombre VARCHAR(100) NOT NULL, " +
           "descripcion TEXT, " +

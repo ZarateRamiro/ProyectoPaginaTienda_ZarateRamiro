@@ -3,8 +3,8 @@ package org.isp63.prog1.dao;
 import org.isp63.prog1.enums.TipoProducto;
 import org.isp63.prog1.entities.Producto;
 import org.isp63.prog1.exception.SinStockException;
-import org.isp63.prog1.interfaces.AdmConnexion;
 import org.isp63.prog1.interfaces.DAO;
+import org.isp63.prog1.util.ConexionPool;
 
 import java.sql.Connection;
 import java.sql.PreparedStatement;
@@ -14,7 +14,7 @@ import java.sql.Statement;
 import java.util.ArrayList;
 import java.util.List;
 
-public class ProductoDao implements AdmConnexion, DAO<Producto, Integer> {
+public class ProductoDao implements DAO<Producto, Integer> {
 
   private static final String SELECT_BASE =
       "SELECT id, nombre, descripcion, precio, imagen, stock, tipo FROM producto ";
@@ -39,7 +39,7 @@ public class ProductoDao implements AdmConnexion, DAO<Producto, Integer> {
 
     List<Producto> productos = new ArrayList<>();
 
-    try (Connection conn = obtenerConexion();
+    try (Connection conn = ConexionPool.getConnection();
          PreparedStatement pst = conn.prepareStatement(SQL_GETALL);
          ResultSet rs = pst.executeQuery()) {
 
@@ -57,7 +57,7 @@ public class ProductoDao implements AdmConnexion, DAO<Producto, Integer> {
   @Override
   public void insert(Producto producto) {
 
-    try (Connection conn = obtenerConexion();
+    try (Connection conn = ConexionPool.getConnection();
          PreparedStatement pst = conn.prepareStatement(SQL_INSERT, Statement.RETURN_GENERATED_KEYS)) {
 
       cargarParametrosProducto(pst, producto);
@@ -78,7 +78,7 @@ public class ProductoDao implements AdmConnexion, DAO<Producto, Integer> {
   @Override
   public void update(Producto producto) {
 
-    try (Connection conn = obtenerConexion();
+    try (Connection conn = ConexionPool.getConnection();
          PreparedStatement pst = conn.prepareStatement(SQL_UPDATE)) {
 
       cargarParametrosProducto(pst, producto);
@@ -95,7 +95,7 @@ public class ProductoDao implements AdmConnexion, DAO<Producto, Integer> {
   @Override
   public void delete(Integer id) {
 
-    try (Connection conn = obtenerConexion();
+    try (Connection conn = ConexionPool.getConnection();
          PreparedStatement pst = conn.prepareStatement(SQL_DELETE)) {
 
       pst.setInt(1, id);
@@ -110,7 +110,7 @@ public class ProductoDao implements AdmConnexion, DAO<Producto, Integer> {
   @Override
   public Producto getById(Integer id) {
 
-    try (Connection conn = obtenerConexion();
+    try (Connection conn = ConexionPool.getConnection();
          PreparedStatement pst = conn.prepareStatement(SQL_GETBYID)) {
 
       pst.setInt(1, id);
@@ -182,7 +182,8 @@ public class ProductoDao implements AdmConnexion, DAO<Producto, Integer> {
 
     return producto;
   }
-// ==========================================
+
+  // ==========================================
   // MÉTODOS CONSULTAS CON PROGRAMACIÓN FUNCIONAL Y STREAMS
   // ==========================================
 

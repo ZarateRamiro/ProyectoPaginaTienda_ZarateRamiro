@@ -1,8 +1,8 @@
 package org.isp63.prog1.dao;
 
 import org.isp63.prog1.entities.Usuario;
-import org.isp63.prog1.interfaces.AdmConnexion;
 import org.isp63.prog1.interfaces.DAO;
+import org.isp63.prog1.util.ConexionPool;
 import org.isp63.prog1.util.Rol;
 
 import java.sql.Connection;
@@ -13,7 +13,7 @@ import java.sql.Statement;
 import java.util.ArrayList;
 import java.util.List;
 
-public class UsuarioDao implements AdmConnexion, DAO<Usuario, Integer> {
+public class UsuarioDao implements DAO<Usuario, Integer> {
 
   private static final String SQL_GETALL = "SELECT id, nombre, email, password, rol FROM usuario ORDER BY nombre";
   private static final String SQL_GETALL_USUARIOS =
@@ -28,7 +28,7 @@ public class UsuarioDao implements AdmConnexion, DAO<Usuario, Integer> {
   private static final String SQL_DELETE = "DELETE FROM usuario WHERE id = ?";
 
   public Usuario validarLogin(String nombre, String password) {
-    try (Connection conn = obtenerConexion();
+    try (Connection conn = ConexionPool.getConnection();
          PreparedStatement pst = conn.prepareStatement(SQL_LOGIN)) {
 
       pst.setString(1, nombre);
@@ -53,7 +53,7 @@ public class UsuarioDao implements AdmConnexion, DAO<Usuario, Integer> {
   public List<Usuario> getByRol(String rol) {
     List<Usuario> lista = new ArrayList<>();
 
-    try (Connection conn = obtenerConexion();
+    try (Connection conn = ConexionPool.getConnection();
          PreparedStatement pst = conn.prepareStatement(SQL_GETALL_USUARIOS)) {
 
       pst.setString(1, rol);
@@ -74,7 +74,7 @@ public class UsuarioDao implements AdmConnexion, DAO<Usuario, Integer> {
   public List<Usuario> getAll() {
     List<Usuario> lista = new ArrayList<>();
 
-    try (Connection conn = obtenerConexion();
+    try (Connection conn = ConexionPool.getConnection();
          PreparedStatement pst = conn.prepareStatement(SQL_GETALL);
          ResultSet rs = pst.executeQuery()) {
 
@@ -90,7 +90,7 @@ public class UsuarioDao implements AdmConnexion, DAO<Usuario, Integer> {
 
   @Override
   public void insert(Usuario usuario) {
-    try (Connection conn = obtenerConexion();
+    try (Connection conn = ConexionPool.getConnection();
          PreparedStatement pst = conn.prepareStatement(SQL_INSERT, Statement.RETURN_GENERATED_KEYS)) {
 
       pst.setString(1, usuario.getNombre());
@@ -111,7 +111,7 @@ public class UsuarioDao implements AdmConnexion, DAO<Usuario, Integer> {
 
   @Override
   public void update(Usuario usuario) {
-    try (Connection conn = obtenerConexion();
+    try (Connection conn = ConexionPool.getConnection();
          PreparedStatement pst = conn.prepareStatement(SQL_UPDATE)) {
 
       pst.setString(1, usuario.getNombre());
@@ -126,7 +126,7 @@ public class UsuarioDao implements AdmConnexion, DAO<Usuario, Integer> {
 
   @Override
   public void delete(Integer id) {
-    try (Connection conn = obtenerConexion();
+    try (Connection conn = ConexionPool.getConnection();
          PreparedStatement pst = conn.prepareStatement(SQL_DELETE)) {
 
       pst.setInt(1, id);
@@ -138,7 +138,7 @@ public class UsuarioDao implements AdmConnexion, DAO<Usuario, Integer> {
 
   @Override
   public Usuario getById(Integer id) {
-    try (Connection conn = obtenerConexion();
+    try (Connection conn = ConexionPool.getConnection();
          PreparedStatement pst = conn.prepareStatement(SQL_GETBYID)) {
 
       pst.setInt(1, id);

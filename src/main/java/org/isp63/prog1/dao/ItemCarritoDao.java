@@ -4,8 +4,8 @@ import org.isp63.prog1.entities.Carrito;
 import org.isp63.prog1.entities.ItemCarrito;
 import org.isp63.prog1.entities.Producto;
 import org.isp63.prog1.enums.TipoProducto;
-import org.isp63.prog1.interfaces.AdmConnexion;
 import org.isp63.prog1.interfaces.DAO;
+import org.isp63.prog1.util.ConexionPool;
 
 import java.sql.Connection;
 import java.sql.PreparedStatement;
@@ -15,7 +15,7 @@ import java.sql.Statement;
 import java.util.ArrayList;
 import java.util.List;
 
-public class ItemCarritoDao implements AdmConnexion, DAO<ItemCarrito, Integer> {
+public class ItemCarritoDao implements DAO<ItemCarrito, Integer> {
 
   private static final String SELECT_BASE =
       "SELECT\n" +
@@ -52,7 +52,7 @@ public class ItemCarritoDao implements AdmConnexion, DAO<ItemCarrito, Integer> {
   public List<ItemCarrito> getAll() {
     List<ItemCarrito> items = new ArrayList<>();
 
-    try (Connection conn = obtenerConexion();
+    try (Connection conn = ConexionPool.getConnection();
          PreparedStatement pst = conn.prepareStatement(SQL_GETALL);
          ResultSet rs = pst.executeQuery()) {
 
@@ -69,7 +69,7 @@ public class ItemCarritoDao implements AdmConnexion, DAO<ItemCarrito, Integer> {
   public List<ItemCarrito> getByCarritoId(Integer carritoId) {
     List<ItemCarrito> items = new ArrayList<>();
 
-    try (Connection conn = obtenerConexion();
+    try (Connection conn = ConexionPool.getConnection();
          PreparedStatement pst = conn.prepareStatement(SQL_GET_BY_CARRITO)) {
 
       pst.setInt(1, carritoId);
@@ -87,7 +87,7 @@ public class ItemCarritoDao implements AdmConnexion, DAO<ItemCarrito, Integer> {
   }
 
   public ItemCarrito getByCarritoYProducto(Integer carritoId, Integer productoId) {
-    try (Connection conn = obtenerConexion();
+    try (Connection conn = ConexionPool.getConnection();
          PreparedStatement pst = conn.prepareStatement(SQL_GET_BY_CARRITO_AND_PRODUCTO)) {
 
       pst.setInt(1, carritoId);
@@ -141,7 +141,7 @@ public class ItemCarritoDao implements AdmConnexion, DAO<ItemCarrito, Integer> {
       return;
     }
 
-    try (Connection conn = obtenerConexion();
+    try (Connection conn = ConexionPool.getConnection();
          PreparedStatement pst = conn.prepareStatement(SQL_UPDATE_CANTIDAD)) {
 
       pst.setInt(1, cantidadFinal);
@@ -166,7 +166,7 @@ public class ItemCarritoDao implements AdmConnexion, DAO<ItemCarrito, Integer> {
       return;
     }
 
-    try (Connection conn = obtenerConexion();
+    try (Connection conn = ConexionPool.getConnection();
          PreparedStatement pst = conn.prepareStatement(SQL_UPDATE_CANTIDAD)) {
 
       pst.setInt(1, cantidad);
@@ -178,7 +178,7 @@ public class ItemCarritoDao implements AdmConnexion, DAO<ItemCarrito, Integer> {
   }
 
   public void vaciarCarrito(Integer carritoId) {
-    try (Connection conn = obtenerConexion();
+    try (Connection conn = ConexionPool.getConnection();
          PreparedStatement pst = conn.prepareStatement(SQL_DELETE_BY_CARRITO)) {
 
       pst.setInt(1, carritoId);
@@ -190,7 +190,7 @@ public class ItemCarritoDao implements AdmConnexion, DAO<ItemCarrito, Integer> {
 
   @Override
   public void insert(ItemCarrito item) {
-    try (Connection conn = obtenerConexion();
+    try (Connection conn = ConexionPool.getConnection();
          PreparedStatement pst = conn.prepareStatement(SQL_INSERT, Statement.RETURN_GENERATED_KEYS)) {
 
       pst.setInt(1, item.getCarrito().getId());
@@ -211,7 +211,7 @@ public class ItemCarritoDao implements AdmConnexion, DAO<ItemCarrito, Integer> {
 
   @Override
   public void update(ItemCarrito item) {
-    try (Connection conn = obtenerConexion();
+    try (Connection conn = ConexionPool.getConnection();
          PreparedStatement pst = conn.prepareStatement(SQL_UPDATE)) {
 
       pst.setInt(1, item.getCarrito().getId());
@@ -227,7 +227,7 @@ public class ItemCarritoDao implements AdmConnexion, DAO<ItemCarrito, Integer> {
 
   @Override
   public void delete(Integer id) {
-    try (Connection conn = obtenerConexion();
+    try (Connection conn = ConexionPool.getConnection();
          PreparedStatement pst = conn.prepareStatement(SQL_DELETE)) {
 
       pst.setInt(1, id);
@@ -239,7 +239,7 @@ public class ItemCarritoDao implements AdmConnexion, DAO<ItemCarrito, Integer> {
 
   @Override
   public ItemCarrito getById(Integer id) {
-    try (Connection conn = obtenerConexion();
+    try (Connection conn = ConexionPool.getConnection();
          PreparedStatement pst = conn.prepareStatement(SQL_GETBYID)) {
 
       pst.setInt(1, id);
@@ -284,4 +284,5 @@ public class ItemCarritoDao implements AdmConnexion, DAO<ItemCarrito, Integer> {
         rs.getInt("cantidad"),
         rs.getDouble("precio_unitario")
     );
-  }}
+  }
+}
